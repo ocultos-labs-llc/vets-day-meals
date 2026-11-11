@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101612">
+  <meta name="description" content="Find free and discounted Veterans Day meals in San Antonio, plus year-round community food help.">
+  <title>Vets Day Meals SA</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header id="topbar" class="topbar">
+    <span class="brand-mark" aria-hidden="true">★</span>
+    <div>
+      <p class="eyebrow">San Antonio · Nov 11, 2026</p>
+      <h1 id="app-title">Vets Day Meals SA</h1>
+    </div>
+  </header>
+  <main id="main" tabindex="-1">
+    <noscript>
+      <p class="noscript">JavaScript is required to load the directory. The saved listings are in the data folder of this site.</p>
+    </noscript>
+
+    <section id="view-map" class="view is-active" aria-labelledby="map-heading">
+      <h2 id="map-heading" class="sr-only">Map</h2>
+      <p class="banner" data-banner>Offers and participation vary by location. Please call ahead and bring military ID or proof of service.</p>
+      <p class="source-line" data-source-line>Loading the directory…</p>
+      <div id="map" role="region" aria-label="Map of San Antonio restaurants with Veterans Day offers. Use the List tab for a searchable directory."></div>
+      <button type="button" id="map-near" class="map-fab" aria-pressed="false">Near me</button>
+    </section>
+
+    <section id="view-list" class="view" hidden aria-labelledby="list-heading">
+      <div class="sticky-head">
+        <h2 id="list-heading" class="sr-only">Restaurant list</h2>
+        <p class="banner" data-banner>Offers and participation vary by location. Please call ahead and bring military ID or proof of service.</p>
+        <p class="source-line" data-source-line>Loading the directory…</p>
+        <div class="filters">
+          <label class="field search">Search
+            <input id="q" type="search" placeholder="Name, offer, area, or address" autocomplete="off">
+          </label>
+          <label class="field">Free or discount
+            <select id="offer">
+              <option value="">All</option>
+              <option value="free">Free</option>
+              <option value="discount">Discount</option>
+            </select>
+          </label>
+          <label class="field">Dine-in or takeout
+            <select id="service">
+              <option value="">Any</option>
+              <option value="dine">Dine-in</option>
+              <option value="takeout">Takeout</option>
+            </select>
+          </label>
+          <label class="field area">Area
+            <select id="area">
+              <option value="">All areas</option>
+            </select>
+          </label>
+          <div class="actions">
+            <button type="button" id="fav-only" aria-pressed="false">Favorites</button>
+            <button type="button" id="near-btn" aria-pressed="false">Near me</button>
+            <button type="button" id="clear-near" hidden>Clear distance</button>
+            <button type="button" id="clear-filters">Clear filters</button>
+          </div>
+          <p id="list-count" class="count" aria-live="polite"></p>
+        </div>
+      </div>
+      <div id="list-results" class="results"></div>
+    </section>
+
+    <section id="view-help" class="view" hidden aria-labelledby="help-heading">
+      <div class="wrap">
+        <h2 id="help-heading" class="section-title">Community food help</h2>
+        <p class="lede">Year-round food help and veteran support in San Antonio. These are not one-day restaurant offers. Call ahead, because hours change.</p>
+        <div id="help-list"><p class="empty">Loading the directory…</p></div>
+      </div>
+    </section>
+
+    <section id="view-about" class="view" hidden aria-labelledby="about-heading">
+      <div class="wrap">
+        <h2 id="about-heading" class="section-title">About</h2>
+        <div id="about-body"><p class="empty">Loading the directory…</p></div>
+      </div>
+    </section>
+
+    <section id="view-mine" class="view" hidden aria-labelledby="mine-heading">
+      <div class="wrap">
+        <h2 id="mine-heading" class="section-title">My Spots</h2>
+        <p class="lede">Saved only on this device. Nothing you add here is written to the public sheet.</p>
+        <div class="actions">
+          <button type="button" id="export-btn" class="btn">Export JSON</button>
+        </div>
+        <label class="field">Import personal data
+          <input id="import-file" type="file" accept="application/json,.json">
+        </label>
+        <form id="spot-form">
+          <h3 id="form-heading">Add a spot</h3>
+          <p id="form-error" class="no-phone" role="alert" hidden></p>
+          <label class="field">Name (required)
+            <input id="spot-name" name="name" required maxlength="140" autocomplete="off">
+          </label>
+          <label class="field">Address (required)
+            <input id="spot-address" name="address" required maxlength="240" autocomplete="off">
+          </label>
+          <label class="field">Offer
+            <textarea id="spot-offer" name="offer" maxlength="1000"></textarea>
+          </label>
+          <label class="field">Notes
+            <textarea id="spot-notes" name="notes" maxlength="2000"></textarea>
+          </label>
+          <label class="field">Latitude, longitude (optional)
+            <input id="spot-coords" name="coords" placeholder="29.4241, -98.4936" autocomplete="off" aria-describedby="coords-hint">
+          </label>
+          <label class="field">Or paste a Google Maps link
+            <input id="spot-link" name="link" inputmode="url" autocomplete="off" aria-describedby="coords-hint">
+          </label>
+          <p id="coords-hint" class="hint">Leave both blank to list the spot without a map pin. A Google Maps link works when it includes the pin.</p>
+          <div class="actions">
+            <button type="submit" id="spot-save" class="btn btn-primary">Save spot</button>
+            <button type="button" id="spot-cancel" class="btn btn-ghost" hidden>Cancel</button>
+          </div>
+        </form>
+        <h3>Your spots</h3>
+        <div id="spot-list"></div>
+        <h3>Hidden places</h3>
+        <div id="hidden-list"></div>
+      </div>
+    </section>
+  </main>
+  <footer id="site-footer" class="site-footer">
+    <p>© 2026 <a href="https://github.com/ocultos-labs-llc" rel="noopener noreferrer">Ocultos Labs LLC</a>. All rights reserved.</p>
+    <p><a href="https://github.com/aiontrust" rel="noopener noreferrer">Built by aiontrust</a></p>
+  </footer>
+  <nav id="tabbar" class="tabbar" aria-label="Primary">
+    <a href="#map" data-view="map">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
+      <span>Map</span>
+    </a>
+    <a href="#list" data-view="list">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z"/></svg>
+      <span>List</span>
+    </a>
+    <a href="#help" data-view="help">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.6-7 10-7 10z"/></svg>
+      <span>Help</span>
+    </a>
+    <a href="#about" data-view="about">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 0 .01 20A10 10 0 0 0 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+      <span>About</span>
+    </a>
+    <a href="#mine" data-view="mine">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3l2.7 5.5 6.1.9-4.4 4.3 1 6.1L12 17.8 6.6 19.8l1-6.1L3.2 9.4l6.1-.9L12 3z"/></svg>
+      <span>My Spots</span>
+    </a>
+  </nav>
+
+  <div id="detail-root" class="detail-root" hidden>
+    <button type="button" class="detail-backdrop" data-close="true" tabindex="-1" aria-label="Close details"></button>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="detail-title">
+      <div class="detail-top">
+        <button type="button" id="detail-close" class="btn btn-ghost">Close</button>
+      </div>
+      <div id="detail-body"></div>
+    </div>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
