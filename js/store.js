@@ -1,5 +1,5 @@
-import { STORAGE_KEY } from "./config.js";
-import { blankPersonal, sanitizePersonal } from "./logic.js";
+import { STORAGE_KEY } from "./config.js?v=20261111";
+import { blankPersonal, sanitizePersonal } from "./logic.js?v=20261111";
 
 export function loadPersonal() {
   try {

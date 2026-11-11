@@ -8,8 +8,8 @@ import {
   SHEET_ID,
   SHEET_TABS,
   SNAPSHOTS,
-} from "./config.js";
-import { parseCsv } from "./csv.js";
+} from "./config.js?v=20261111";
+import { parseCsv } from "./csv.js?v=20261111";
 import {
   appleHref,
   areaOptions,
@@ -29,15 +29,15 @@ import {
   sortPlaces,
   spotToPlace,
   telHref,
-} from "./logic.js";
-import { loadPersonal, savePersonal } from "./store.js";
+} from "./logic.js?v=20261111";
+import { loadPersonal, savePersonal } from "./store.js?v=20261111";
 import {
   importSummary,
   mergeSpreadsheet,
   parseSpreadsheet,
   spreadsheetRows,
   toCsv,
-} from "./personal-file.js";
+} from "./personal-file.js?v=20261111";
 
 const VIEWS = ["map", "card", "list", "help", "about", "mine"];
 const VIEW_TITLES = { map: "Map", card: "Card", list: "List", help: "Help", about: "About", mine: "My Spots" };
@@ -853,29 +853,22 @@ function renderCard() {
     const card = h("article", { class: "feed-card" });
     card.dataset.placeId = place.id;
     if (focusId) card.classList.add("is-focused");
-    const top = h("div", { class: "feed-top" });
+    const banner = h("div", { class: "feed-banner" });
     const thumb = h("div", { class: "feed-thumb" });
     mountThumb(thumb, place, loc);
-    const copy = h("div", { class: "feed-copy" });
-    copy.append(h("h3", { text: place.name }));
+    banner.append(thumb);
+    const body = h("div", { class: "feed-body" });
+    body.append(h("h3", { text: place.name }));
     const meta = h("p", { class: "feed-meta" });
     const chip = offerChip(place.offerLabel);
     if (chip) meta.append(chip);
     if (place.kind === "spot") meta.append(h("span", { class: "chip chip-mine", text: "My spot" }));
-    const area = rowMeta(place);
-    if (area) meta.append(h("span", { text: area }));
-    if (meta.childNodes.length) copy.append(meta);
-    if (loc) {
-      const address = formatAddress(loc);
-      if (address) copy.append(h("p", { class: "feed-addr", text: address }));
-      else if (loc.lat == null) copy.append(h("p", { class: "feed-addr", text: "No map pin for this address." }));
-    }
-    top.append(thumb, copy);
-    card.append(top);
+    if (meta.childNodes.length) body.append(meta);
     const offer = offerBlock(place.offer);
-    if (offer) card.append(offer);
-    card.append(h("p", { class: "feed-ahead", text: CALLOUT }));
-    card.append(cardActions(place, loc));
+    if (offer) body.append(offer);
+    body.append(h("p", { class: "feed-ahead", text: CALLOUT }));
+    body.append(cardActions(place, loc));
+    card.append(banner, body);
     results.append(card);
   }
   updateFilterBadge();

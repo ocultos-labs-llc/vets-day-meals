@@ -59,8 +59,8 @@ Do not add a build command. Publish the repository root.
 ## What’s in the app
 
 - **Map** — named pins on a light OpenFreeMap (Bright) basemap, clustered as “6 places” when zoomed out. CARTO’s Voyager tiles now require a paid key, so they are not used. On a phone, tap a pin to open that place on the Card tab. On a wider screen, tap a pin for a popup.
-- **Card** — a compact scrolling feed. Each card has a small photo (a sheet image link when one is filled, otherwise the restaurant logo, otherwise a map thumbnail or initials), the offer clamped to two lines, a one-line call-ahead note, and Call, Google Maps, Apple Maps, and favorite on one row.
-- **List** — one compact row per place. Tap a row for the same details.
+- **Card** — picture cards, about two or three on a phone screen. Each card leads with a wide photo (a sheet image link when one is filled, otherwise the restaurant logo, otherwise a map thumbnail or initials), then the name, offer badge, a two-line offer, a one-line call-ahead note, and Call, Google Maps, Apple Maps, and favorite on one row.
+- **List** — a plain text directory, about eight to ten rows on a phone screen. Each row is the name, a small offer badge, the area or distance, and a chevron. There are no pictures. Tap a row to expand the details.
 - **Menu** — the icon at the top left holds the filters, About, and the copyright line. Help is its own tab. My Spots is a switch at the top of List. The refresh icon reloads the public sheet.
 - **My Spots** — add, edit, or delete a personal spot. Download a spreadsheet or save a PDF, and import that spreadsheet on another phone.
 
