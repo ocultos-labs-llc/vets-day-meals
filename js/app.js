@@ -26,12 +26,18 @@ import {
   parseLatLng,
   placeMatches,
   safeHttp,
-  sanitizePersonal,
   sortPlaces,
   spotToPlace,
   telHref,
 } from "./logic.js";
 import { loadPersonal, savePersonal } from "./store.js";
+import {
+  importSummary,
+  mergeSpreadsheet,
+  parseSpreadsheet,
+  spreadsheetRows,
+  toCsv,
+} from "./personal-file.js";
 
 const VIEWS = ["map", "list", "help", "about", "mine"];
 
@@ -777,7 +783,7 @@ function renderAbout() {
     : "The About text is the saved copy dated November 10, 2026.";
   root.append(h("p", { text: `${fromSheet} ${aboutBit}` }));
   root.append(h("h3", { text: "On this device" }));
-  root.append(h("p", { text: "Favorites, hidden places, private notes, and spots you add stay in this browser. They are never written to the public sheet. Export downloads a JSON file. Import replaces the personal data on this device." }));
+  root.append(h("p", { text: "Favorites, hidden places, private notes, and spots you add stay in this browser. They are never written to the public sheet. Download spreadsheet saves a copy you can open in Excel. Import spreadsheet adds that copy back onto a phone without removing what is already there." }));
 }
 
 function lookupName(id) {
@@ -1097,43 +1103,110 @@ form.addEventListener("submit", (event) => {
 });
 
 document.getElementById("spot-cancel").addEventListener("click", resetForm);
-document.getElementById("export-btn").addEventListener("click", () => {
-  const payload = {
-    app: APP_TITLE,
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    spots: personal.spots,
-    favorites: personal.favorites,
-    hidden: personal.hidden,
-    notes: personal.notes,
-  };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+
+function currentRows() {
+  return spreadsheetRows(personal, directory);
+}
+
+function downloadSpreadsheet() {
+  const csv = toCsv(currentRows());
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
-  const link = h("a", { href: url, download: "vets-day-meals-sa-personal.json" });
+  const link = h("a", { href: url, download: "My Veterans Day Spots.csv" });
   document.body.append(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+  toast("Spreadsheet downloaded.");
+}
+
+function printLine(label, value) {
+  if (!value) return null;
+  const p = h("p");
+  p.append(h("strong", { text: `${label}: ` }), value);
+  return p;
+}
+
+function fillPrintSheet(rows) {
+  const list = document.getElementById("print-list");
+  document.getElementById("print-date").textContent = new Date().toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  list.replaceChildren();
+  if (!rows.length) {
+    list.append(h("p", { class: "print-empty", text: "Nothing saved yet." }));
+    return;
+  }
+  for (const record of rows) {
+    const card = h("article", { class: "print-card" });
+    card.append(h("p", { class: "print-type", text: record.Type }));
+    card.append(h("h2", { text: record.Name }));
+    if (record.Address) card.append(h("p", { text: record.Address }));
+    const offer = printLine("Offer", record.Offer);
+    const notes = printLine("My notes", record["My notes"]);
+    const phone = printLine("Phone", record.Phone);
+    if (offer) card.append(offer);
+    if (notes) card.append(notes);
+    if (phone) card.append(phone);
+    card.append(h("p", { text: record.Hidden === "yes" ? "Hidden: yes" : "Hidden: no" }));
+    if (record["Google Maps link"]) {
+      card.append(h("p", {}, [h("span", { text: "Google Maps: " }), h("a", { href: record["Google Maps link"], text: record["Google Maps link"] })]));
+    }
+    if (record["Apple Maps link"]) {
+      card.append(h("p", {}, [h("span", { text: "Apple Maps: " }), h("a", { href: record["Apple Maps link"], text: record["Apple Maps link"] })]));
+    }
+    list.append(card);
+  }
+}
+
+function closePrintSheet() {
+  document.body.classList.remove("is-printing");
+  document.getElementById("print-sheet").hidden = true;
+}
+
+function savePdf() {
+  fillPrintSheet(currentRows());
+  const sheet = document.getElementById("print-sheet");
+  sheet.hidden = false;
+  document.body.classList.add("is-printing");
+  const cleanup = () => {
+    closePrintSheet();
+    window.removeEventListener("afterprint", cleanup);
+  };
+  window.addEventListener("afterprint", cleanup);
+  window.setTimeout(() => window.print(), 50);
+}
+
+document.getElementById("download-csv").addEventListener("click", downloadSpreadsheet);
+document.getElementById("save-pdf").addEventListener("click", savePdf);
+document.getElementById("print-back").addEventListener("click", closePrintSheet);
+document.getElementById("import-csv-btn").addEventListener("click", () => {
+  document.getElementById("import-csv").click();
 });
 
-document.getElementById("import-file").addEventListener("change", async (event) => {
+document.getElementById("import-csv").addEventListener("change", async (event) => {
   const file = event.target.files && event.target.files[0];
   event.target.value = "";
   if (!file) return;
   try {
-    const next = sanitizePersonal(JSON.parse(await file.text()), { strict: true });
-    if (!confirm("Replace spots, favorites, notes, and hidden places on this device with this file?")) return;
-    personal.spots = next.spots;
-    personal.favorites = next.favorites;
-    personal.hidden = next.hidden;
-    personal.notes = next.notes;
+    const records = parseSpreadsheet(await file.text());
+    if (!records.length) {
+      toast("That spreadsheet doesn't list any spots.");
+      return;
+    }
+    const merged = mergeSpreadsheet(personal, records, directory);
+    personal.spots = merged.personal.spots;
+    personal.favorites = merged.personal.favorites;
+    personal.hidden = merged.personal.hidden;
+    personal.notes = merged.personal.notes;
     personal.version = 1;
     if (!persist()) return;
-    resetForm();
     renderDynamic();
-    toast("Imported personal data on this device.");
+    toast(importSummary(merged.summary));
   } catch {
-    toast("That file isn't a Vets Day Meals personal data export.");
+    toast("That file doesn't look like a spreadsheet saved by this app.");
   }
 });
 

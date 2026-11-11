@@ -593,6 +593,109 @@ button:disabled { opacity: 0.65; }
   box-shadow: var(--shadow);
 }
 
+.save-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.save-actions .btn { width: 100%; }
+
+.print-sheet {
+  display: none;
+  background: #fff;
+  color: #1b1b1b;
+  font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+}
+
+body.is-printing .print-sheet {
+  display: block !important;
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  overflow: auto;
+  padding: 20px 16px 40px;
+}
+
+.print-sheet h1 {
+  font-family: Georgia, "Iowan Old Style", Palatino, serif;
+  font-size: 1.8rem;
+  margin: 0 0 4px;
+  color: #142018;
+}
+
+.print-date { margin: 0 0 16px; color: #333; }
+
+.print-back {
+  min-height: 48px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid #222;
+  background: #fff;
+  color: #142018;
+  font: inherit;
+  font-weight: 800;
+}
+
+.print-card {
+  border: 1px solid #cfcfcf;
+  border-left: 6px solid #147a45;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin: 0 0 12px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.print-type {
+  margin: 0 0 4px;
+  color: #0d5c32;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.print-card h2 { margin: 0 0 8px; font-size: 1.25rem; color: #142018; }
+.print-card p { margin: 0 0 6px; }
+.print-card a { color: #0b3d91; }
+
+.print-footer {
+  margin-top: 20px;
+  padding-top: 10px;
+  border-top: 1px solid #ccc;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.print-footer a { color: #0b3d91; }
+.print-empty { margin: 0; }
+
+@media print {
+  body.is-printing {
+    height: auto;
+    overflow: visible;
+    background: #fff !important;
+    color: #1b1b1b !important;
+  }
+
+  body.is-printing .topbar,
+  body.is-printing main,
+  body.is-printing .site-footer,
+  body.is-printing .tabbar,
+  body.is-printing .toast,
+  body.is-printing .detail-root,
+  body.is-printing .print-back { display: none !important; }
+
+  body.is-printing .print-sheet {
+    position: static;
+    overflow: visible;
+    padding: 0;
+  }
+}
+
 .noscript {
   margin: 12px;
   padding: 12px;
@@ -615,6 +718,8 @@ button:disabled { opacity: 0.65; }
     width: 100%;
   }
   .wrap { margin: 0 auto; }
+  .save-actions { flex-direction: row; flex-wrap: wrap; }
+  .save-actions .btn { width: auto; flex: 1 1 180px; }
   .detail-root { align-items: center; padding: 24px; }
   .sheet { border-radius: 18px; max-height: min(84dvh, 760px); }
 }
