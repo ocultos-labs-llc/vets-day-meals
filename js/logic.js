@@ -1,4 +1,4 @@
-import { FALLBACK_DISCLAIMER } from "./config.js";
+import { FALLBACK_DISCLAIMER } from "./config.js?v=20261111";
 
 export function field(row, ...names) {
   if (!row) return "";
