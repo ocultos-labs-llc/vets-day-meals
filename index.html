@@ -14,13 +14,24 @@
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
-  <header id="topbar" class="topbar">
-    <span class="brand-mark" aria-hidden="true">★</span>
-    <div>
-      <p class="eyebrow">San Antonio · Nov 11, 2026</p>
-      <h1 id="app-title">Vets Day Meals SA</h1>
-    </div>
+  <header id="topbar" class="appbar">
+    <button type="button" id="menu-btn" class="icon-btn" aria-label="Menu and filters" aria-expanded="false" aria-controls="menu-panel">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 7h16v2H4V7zm0 4h16v2H4v-2zm0 4h16v2H4v-2z"/></svg>
+      <span id="filter-badge" class="filter-badge" hidden>0</span>
+    </button>
+    <h1 id="bar-title">Map</h1>
+    <button type="button" id="search-btn" class="icon-btn" aria-label="Search" aria-expanded="false" aria-controls="search-bar">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.5 14h-.8l-.3-.3a6.5 6.5 0 1 0-.7.7l.3.3v.8l5 5 1.5-1.5-5-5zM10 14.5a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg>
+    </button>
+    <button type="button" id="refresh-btn" class="icon-btn" aria-label="Reload listings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.2L13 11h7V4l-2.3 2.3z"/></svg>
+    </button>
   </header>
+  <div id="search-bar" class="search-bar" hidden>
+    <label class="sr-only" for="q">Search</label>
+    <input id="q" type="search" placeholder="Search places" autocomplete="off">
+    <button type="button" id="search-filters" class="text-btn">Filters</button>
+  </div>
   <main id="main" tabindex="-1">
     <noscript>
       <p class="noscript">JavaScript is required to load the directory. The saved listings are in the data folder of this site.</p>
@@ -28,70 +39,35 @@
 
     <section id="view-map" class="view is-active" aria-labelledby="map-heading">
       <h2 id="map-heading" class="sr-only">Map</h2>
-      <p class="banner" data-banner>Offers and participation vary by location. Please call ahead and bring military ID or proof of service.</p>
-      <p class="source-line" data-source-line>Loading the directory…</p>
-      <div id="map" role="region" aria-label="Map of San Antonio restaurants with Veterans Day offers. Use the List tab for a searchable directory."></div>
-      <button type="button" id="map-near" class="map-fab" aria-pressed="false">Near me</button>
+      <div id="map" role="region" aria-label="Map of San Antonio restaurants with Veterans Day offers. Pins are labeled with the business name when you zoom in."></div>
+      <div class="map-fabs">
+        <button type="button" id="map-near" class="fab" aria-pressed="false" aria-label="Near me">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
+        </button>
+        <button type="button" id="add-spot-btn" class="fab" aria-label="Add my own spot">+</button>
+      </div>
+    </section>
+
+    <section id="view-card" class="view" hidden aria-labelledby="card-heading">
+      <h2 id="card-heading" class="sr-only">Card</h2>
+      <p class="thin-note">Call ahead and bring military ID. Offers vary by location.</p>
+      <p id="card-count" class="count" aria-live="polite"></p>
+      <div id="card-results" class="card-feed"></div>
     </section>
 
     <section id="view-list" class="view" hidden aria-labelledby="list-heading">
-      <div class="sticky-head">
-        <h2 id="list-heading" class="sr-only">Restaurant list</h2>
-        <p class="banner" data-banner>Offers and participation vary by location. Please call ahead and bring military ID or proof of service.</p>
-        <p class="source-line" data-source-line>Loading the directory…</p>
-        <div class="filters">
-          <label class="field search">Search
-            <input id="q" type="search" placeholder="Name, offer, area, or address" autocomplete="off">
-          </label>
-          <label class="field">Free or discount
-            <select id="offer">
-              <option value="">All</option>
-              <option value="free">Free</option>
-              <option value="discount">Discount</option>
-            </select>
-          </label>
-          <label class="field">Dine-in or takeout
-            <select id="service">
-              <option value="">Any</option>
-              <option value="dine">Dine-in</option>
-              <option value="takeout">Takeout</option>
-            </select>
-          </label>
-          <label class="field area">Area
-            <select id="area">
-              <option value="">All areas</option>
-            </select>
-          </label>
-          <div class="actions">
-            <button type="button" id="fav-only" aria-pressed="false">Favorites</button>
-            <button type="button" id="near-btn" aria-pressed="false">Near me</button>
-            <button type="button" id="clear-near" hidden>Clear distance</button>
-            <button type="button" id="clear-filters">Clear filters</button>
-          </div>
-          <p id="list-count" class="count" aria-live="polite"></p>
-        </div>
+      <h2 id="list-heading" class="sr-only">List</h2>
+      <div class="list-switch" role="tablist" aria-label="What to show">
+        <button type="button" id="show-all" role="tab" aria-selected="true">All</button>
+        <button type="button" id="show-mine" role="tab" aria-selected="false">My Spots</button>
+        <button type="button" id="list-filters" class="text-btn">Filters</button>
       </div>
-      <div id="list-results" class="results"></div>
-    </section>
-
-    <section id="view-help" class="view" hidden aria-labelledby="help-heading">
-      <div class="wrap">
-        <h2 id="help-heading" class="section-title">Community food help</h2>
-        <p class="lede">Year-round food help and veteran support in San Antonio. These are not one-day restaurant offers. Call ahead, because hours change.</p>
-        <div id="help-list"><p class="empty">Loading the directory…</p></div>
+      <div id="all-panel">
+        <p class="thin-note">Call ahead and bring military ID. Offers vary by location.</p>
+        <p id="list-count" class="count" aria-live="polite"></p>
+        <div id="list-results" class="list-feed"></div>
       </div>
-    </section>
-
-    <section id="view-about" class="view" hidden aria-labelledby="about-heading">
-      <div class="wrap">
-        <h2 id="about-heading" class="section-title">About</h2>
-        <div id="about-body"><p class="empty">Loading the directory…</p></div>
-      </div>
-    </section>
-
-    <section id="view-mine" class="view" hidden aria-labelledby="mine-heading">
-      <div class="wrap">
-        <h2 id="mine-heading" class="section-title">My Spots</h2>
+      <div id="mine-panel" hidden>
         <p class="lede" id="device-note">Your spots are saved only on this device. Download a copy to keep them or move them to another phone.</p>
         <div class="save-actions">
           <button type="button" id="download-csv" class="btn">Download spreadsheet</button>
@@ -128,10 +104,28 @@
         </form>
         <h3>Your spots</h3>
         <div id="spot-list"></div>
+        <h3>Favorites</h3>
+        <div id="fav-list"></div>
         <h3>Hidden places</h3>
         <div id="hidden-list"></div>
       </div>
     </section>
+
+    <section id="view-help" class="view" hidden aria-labelledby="help-heading">
+      <div class="wrap">
+        <h2 id="help-heading" class="section-title">Community food help</h2>
+        <p class="lede">Year-round food help and veteran support in San Antonio. These are not one-day restaurant offers. Call ahead, because hours change.</p>
+        <div id="help-list"><p class="empty">Loading the directory…</p></div>
+      </div>
+    </section>
+
+    <section id="view-about" class="view" hidden aria-labelledby="about-heading">
+      <div class="wrap">
+        <h2 id="about-heading" class="section-title">About</h2>
+        <div id="about-body"><p class="empty">Loading the directory…</p></div>
+      </div>
+    </section>
+
   </main>
   <footer id="site-footer" class="site-footer">
     <p>© 2026 <a href="https://github.com/ocultos-labs-llc" rel="noopener noreferrer">Ocultos Labs LLC</a>. All rights reserved.</p>
@@ -142,6 +136,10 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
       <span>Map</span>
     </a>
+    <a href="#card" data-view="card">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm1 4h14V7H5v2zm0 2v6h14v-6H5z"/></svg>
+      <span>Card</span>
+    </a>
     <a href="#list" data-view="list">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z"/></svg>
       <span>List</span>
@@ -150,15 +148,51 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.6-7 10-7 10z"/></svg>
       <span>Help</span>
     </a>
-    <a href="#about" data-view="about">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 0 .01 20A10 10 0 0 0 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-      <span>About</span>
-    </a>
-    <a href="#mine" data-view="mine">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3l2.7 5.5 6.1.9-4.4 4.3 1 6.1L12 17.8 6.6 19.8l1-6.1L3.2 9.4l6.1-.9L12 3z"/></svg>
-      <span>My Spots</span>
-    </a>
   </nav>
+  <div id="menu-panel" class="menu-panel" hidden>
+    <div class="menu-card" role="dialog" aria-labelledby="menu-heading">
+      <div class="menu-head">
+        <h2 id="menu-heading">Vets Day Meals SA</h2>
+        <button type="button" id="menu-close" class="btn btn-ghost">Close</button>
+      </div>
+      <p class="menu-note">Offers and participation vary by location. Please call ahead and bring military ID or proof of service.</p>
+      <p class="source-line" data-source-line>Loading the directory…</p>
+      <div class="filters">
+        <label class="field">Free or discount
+          <select id="offer">
+            <option value="">All</option>
+            <option value="free">Free</option>
+            <option value="discount">Discount</option>
+          </select>
+        </label>
+        <label class="field">Dine-in or takeout
+          <select id="service">
+            <option value="">Any</option>
+            <option value="dine">Dine-in</option>
+            <option value="takeout">Takeout</option>
+          </select>
+        </label>
+        <label class="field area">Area
+          <select id="area">
+            <option value="">All areas</option>
+          </select>
+        </label>
+        <div class="actions">
+          <button type="button" id="fav-only" aria-pressed="false">Favorites</button>
+          <button type="button" id="near-btn" aria-pressed="false">Near me</button>
+          <button type="button" id="clear-near" hidden>Clear distance</button>
+          <button type="button" id="clear-filters">Clear</button>
+        </div>
+      </div>
+      <nav class="menu-links" aria-label="More">
+        <a href="#about">About</a>
+      </nav>
+      <footer class="menu-footer">
+        <p>© 2026 <a href="https://github.com/ocultos-labs-llc" rel="noopener noreferrer">Ocultos Labs LLC</a>. All rights reserved.</p>
+        <p><a href="https://github.com/aiontrust" rel="noopener noreferrer">Built by aiontrust</a></p>
+      </footer>
+    </div>
+  </div>
 
   <div id="detail-root" class="detail-root" hidden>
     <button type="button" class="detail-backdrop" data-close="true" tabindex="-1" aria-label="Close details"></button>
@@ -167,15 +201,6 @@
         <button type="button" id="detail-close" class="btn btn-ghost">Close</button>
       </div>
       <div id="detail-body"></div>
-    </div>
-  </div>
-  <div id="pin-sheet" class="pin-sheet" hidden>
-    <div class="pin-sheet-card" role="dialog" aria-labelledby="pin-sheet-title">
-      <div class="pin-sheet-top">
-        <h2 id="pin-sheet-title"></h2>
-        <button type="button" id="pin-sheet-close" class="btn btn-ghost">Close</button>
-      </div>
-      <div id="pin-sheet-body"></div>
     </div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>

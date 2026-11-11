@@ -58,10 +58,10 @@ Do not add a build command. Publish the repository root.
 
 ## What’s in the app
 
-- **Map** — a pin for every location that has coordinates, clustered where they are dense, centered on San Antonio. Tap a pin for a card with the offer, a call-ahead warning, and map links.
-- **List** — search, Free or Discount, dine-in or takeout, and area. Locations without coordinates or a phone stay in the list, with the restaurant website and Google/Apple Maps as the fallback.
-- **Help** — community food organizations.
-- **About** — purpose, last updated, and a disclaimer.
-- **My Spots** — add, edit, or delete a personal spot (optional latitude/longitude or a Google Maps link). Star favorites, hide places, and keep private notes. Download a spreadsheet or save a PDF to keep a copy, and import that spreadsheet on another phone.
+- **Map** — named pins on a light map, clustered as “6 places” when zoomed out. On a phone, tap a pin to open that place on the Card tab. On a wider screen, tap a pin for a popup.
+- **Card** — a scrolling feed of each place, with the offer, call-ahead note, call button, address, and map links.
+- **List** — one compact row per place. Tap a row for the same details.
+- **Menu** — the icon at the top left holds the filters, About, and the copyright line. Help is its own tab. My Spots is a switch at the top of List. The refresh icon reloads the public sheet.
+- **My Spots** — add, edit, or delete a personal spot. Download a spreadsheet or save a PDF, and import that spreadsheet on another phone.
 
-The footer on every view credits Ocultos Labs LLC and aiontrust.
+On a phone the copyright sits in the menu and on About, so the map can use the full screen. On a wider screen it also stays at the bottom of the page.
