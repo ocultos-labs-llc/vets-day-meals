@@ -41,6 +41,7 @@ import {
 
 const VIEWS = ["map", "card", "list", "help", "about", "mine"];
 const VIEW_TITLES = { map: "Map", card: "Card", list: "List", help: "Help", about: "About", mine: "My Spots" };
+let listMode = "all";
 const NAME_ZOOM = 14;
 
 const personal = loadPersonal();
@@ -1112,13 +1113,30 @@ function lookupName(id) {
 function renderMineLists() {
   const spots = document.getElementById("spot-list");
   const hidden = document.getElementById("hidden-list");
-  if (!spots || !hidden) return;
+  const favs = document.getElementById("fav-list");
+  if (!spots || !hidden || !favs) return;
   const spotPlaces = personal.spots.map(spotToPlace);
   spots.replaceChildren();
   if (!spotPlaces.length) spots.append(h("p", { class: "empty", text: "You haven't added a spot yet." }));
   else for (const place of spotPlaces) spots.append(renderSpotCard(place));
 
-  const ids = Object.keys(personal.hidden).filter((id) => !personal.spots.some((spot) => spot.id === id));
+  const favIds = Object.keys(personal.favorites).filter((id) => personal.favorites[id] && !personal.spots.some((spot) => spot.id === id));
+  favs.replaceChildren();
+  if (!favIds.length) favs.append(h("p", { class: "empty", text: "No favorites yet. Star a place to keep it here." }));
+  for (const id of favIds) {
+    const row = h("div", { class: "card hidden-row" });
+    row.append(h("h3", { text: lookupName(id) }));
+    row.append(h("div", { class: "card-actions" }, [
+      h("button", { type: "button", class: "btn btn-ghost", text: "Open", onclick: () => {
+        const place = allPlaces().find((item) => item.id === id);
+        if (place) showPlaceOnCard(place, place.locations[0]);
+      } }),
+      h("button", { type: "button", class: "btn btn-ghost", text: "Unfavorite", onclick: () => onFavorite(id) }),
+    ]));
+    favs.append(row);
+  }
+
+  const ids = Object.keys(personal.hidden).filter((id) => personal.hidden[id] && !personal.spots.some((spot) => spot.id === id));
   hidden.replaceChildren();
   if (!ids.length) hidden.append(h("p", { class: "empty", text: "Nothing is hidden." }));
   for (const id of ids) {
@@ -1137,6 +1155,18 @@ function renderMineLists() {
     }));
     hidden.append(row);
   }
+}
+
+function applyListMode() {
+  const mine = listMode === "mine";
+  const allPanel = document.getElementById("all-panel");
+  const minePanel = document.getElementById("mine-panel");
+  if (allPanel) allPanel.hidden = mine;
+  if (minePanel) minePanel.hidden = !mine;
+  const allBtn = document.getElementById("show-all");
+  const mineBtn = document.getElementById("show-mine");
+  if (allBtn) allBtn.setAttribute("aria-selected", mine ? "false" : "true");
+  if (mineBtn) mineBtn.setAttribute("aria-selected", mine ? "true" : "false");
 }
 
 function renderDynamic() {
@@ -1252,23 +1282,29 @@ function closeDetail({ restore = true } = {}) {
 }
 
 function showView(name, { fromHash = false } = {}) {
+  if (name === "mine") listMode = "mine";
+  else if (name === "list") listMode = "all";
   if (!VIEWS.includes(name)) name = "map";
+  const view = name === "mine" ? "list" : name;
   closeDetail({ restore: false });
   closeMenu();
   const title = document.getElementById("bar-title");
-  if (title) title.textContent = VIEW_TITLES[name] || "Map";
-  for (const view of VIEWS) {
-    const section = document.getElementById(`view-${view}`);
-    const on = view === name;
+  if (title) title.textContent = view === "list" && listMode === "mine" ? "My Spots" : (VIEW_TITLES[view] || "Map");
+  for (const id of VIEWS) {
+    const section = document.getElementById(`view-${id}`);
+    if (!section) continue;
+    const on = id === view;
     section.hidden = !on;
     section.classList.toggle("is-active", on);
   }
   document.querySelectorAll("#tabbar a").forEach((link) => {
-    if (link.dataset.view === name) link.setAttribute("aria-current", "page");
+    if (link.dataset.view === view) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   });
-  if (!fromHash && (location.hash.replace("#", "") || "map") !== name) location.hash = name;
-  if (name === "map" && map) requestAnimationFrame(() => map.invalidateSize());
+  applyListMode();
+  const hashName = view === "list" && listMode === "mine" ? "mine" : view;
+  if (!fromHash && (location.hash.replace("#", "") || "map") !== hashName) location.hash = hashName;
+  if (view === "map" && map) requestAnimationFrame(() => map.invalidateSize());
 }
 
 function viewFromHash() {
@@ -1617,6 +1653,9 @@ document.getElementById("add-spot-btn").addEventListener("click", () => {
   field.scrollIntoView({ block: "center" });
   field.focus();
 });
+document.getElementById("show-all").addEventListener("click", () => showView("list"));
+document.getElementById("show-mine").addEventListener("click", () => showView("mine"));
+document.getElementById("list-filters").addEventListener("click", openMenu);
 document.getElementById("menu-heading").textContent = APP_TITLE;
 document.getElementById("refresh-btn").addEventListener("click", () => reloadDirectory(true));
 

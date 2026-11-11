@@ -57,29 +57,17 @@
 
     <section id="view-list" class="view" hidden aria-labelledby="list-heading">
       <h2 id="list-heading" class="sr-only">List</h2>
-      <p class="thin-note">Call ahead and bring military ID. Offers vary by location.</p>
-      <p id="list-count" class="count" aria-live="polite"></p>
-      <div id="list-results" class="list-feed"></div>
-    </section>
-
-    <section id="view-help" class="view" hidden aria-labelledby="help-heading">
-      <div class="wrap">
-        <h2 id="help-heading" class="section-title">Community food help</h2>
-        <p class="lede">Year-round food help and veteran support in San Antonio. These are not one-day restaurant offers. Call ahead, because hours change.</p>
-        <div id="help-list"><p class="empty">Loading the directory…</p></div>
+      <div class="list-switch" role="tablist" aria-label="What to show">
+        <button type="button" id="show-all" role="tab" aria-selected="true">All</button>
+        <button type="button" id="show-mine" role="tab" aria-selected="false">My Spots</button>
+        <button type="button" id="list-filters" class="text-btn">Filters</button>
       </div>
-    </section>
-
-    <section id="view-about" class="view" hidden aria-labelledby="about-heading">
-      <div class="wrap">
-        <h2 id="about-heading" class="section-title">About</h2>
-        <div id="about-body"><p class="empty">Loading the directory…</p></div>
+      <div id="all-panel">
+        <p class="thin-note">Call ahead and bring military ID. Offers vary by location.</p>
+        <p id="list-count" class="count" aria-live="polite"></p>
+        <div id="list-results" class="list-feed"></div>
       </div>
-    </section>
-
-    <section id="view-mine" class="view" hidden aria-labelledby="mine-heading">
-      <div class="wrap">
-        <h2 id="mine-heading" class="section-title">My Spots</h2>
+      <div id="mine-panel" hidden>
         <p class="lede" id="device-note">Your spots are saved only on this device. Download a copy to keep them or move them to another phone.</p>
         <div class="save-actions">
           <button type="button" id="download-csv" class="btn">Download spreadsheet</button>
@@ -116,10 +104,28 @@
         </form>
         <h3>Your spots</h3>
         <div id="spot-list"></div>
+        <h3>Favorites</h3>
+        <div id="fav-list"></div>
         <h3>Hidden places</h3>
         <div id="hidden-list"></div>
       </div>
     </section>
+
+    <section id="view-help" class="view" hidden aria-labelledby="help-heading">
+      <div class="wrap">
+        <h2 id="help-heading" class="section-title">Community food help</h2>
+        <p class="lede">Year-round food help and veteran support in San Antonio. These are not one-day restaurant offers. Call ahead, because hours change.</p>
+        <div id="help-list"><p class="empty">Loading the directory…</p></div>
+      </div>
+    </section>
+
+    <section id="view-about" class="view" hidden aria-labelledby="about-heading">
+      <div class="wrap">
+        <h2 id="about-heading" class="section-title">About</h2>
+        <div id="about-body"><p class="empty">Loading the directory…</p></div>
+      </div>
+    </section>
+
   </main>
   <footer id="site-footer" class="site-footer">
     <p>© 2026 <a href="https://github.com/ocultos-labs-llc" rel="noopener noreferrer">Ocultos Labs LLC</a>. All rights reserved.</p>
@@ -137,6 +143,10 @@
     <a href="#list" data-view="list">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z"/></svg>
       <span>List</span>
+    </a>
+    <a href="#help" data-view="help">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.6-7 10-7 10z"/></svg>
+      <span>Help</span>
     </a>
   </nav>
   <div id="menu-panel" class="menu-panel" hidden>
@@ -175,9 +185,7 @@
         </div>
       </div>
       <nav class="menu-links" aria-label="More">
-        <a href="#help">Community food help</a>
         <a href="#about">About</a>
-        <a href="#mine">My Spots</a>
       </nav>
       <footer class="menu-footer">
         <p>© 2026 <a href="https://github.com/ocultos-labs-llc" rel="noopener noreferrer">Ocultos Labs LLC</a>. All rights reserved.</p>

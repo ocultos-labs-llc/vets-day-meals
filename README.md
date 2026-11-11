@@ -61,7 +61,7 @@ Do not add a build command. Publish the repository root.
 - **Map** — named pins on a light map, clustered as “6 places” when zoomed out. On a phone, tap a pin to open that place on the Card tab. On a wider screen, tap a pin for a popup.
 - **Card** — a scrolling feed of each place, with the offer, call-ahead note, call button, address, and map links.
 - **List** — one compact row per place. Tap a row for the same details.
-- **Menu** — the icon at the top left holds search filters, community food help, About, and My Spots. The refresh icon reloads the public sheet.
+- **Menu** — the icon at the top left holds the filters, About, and the copyright line. Help is its own tab. My Spots is a switch at the top of List. The refresh icon reloads the public sheet.
 - **My Spots** — add, edit, or delete a personal spot. Download a spreadsheet or save a PDF, and import that spreadsheet on another phone.
 
 On a phone the copyright sits in the menu and on About, so the map can use the full screen. On a wider screen it also stays at the bottom of the page.
