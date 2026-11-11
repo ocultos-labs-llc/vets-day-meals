@@ -1,6 +1,6 @@
 # Vets Day Meals SA
 
-A mobile-first directory of Veterans Day meal offers in San Antonio, Texas, plus year-round community food help. It is a static site: plain HTML, CSS, and JavaScript, with [Leaflet](https://leafletjs.com/) and [OpenStreetMap](https://www.openstreetmap.org/) tiles loaded from a CDN. There is no build step.
+A mobile-first directory of Veterans Day meal offers in San Antonio, Texas, plus year-round community food help. It is a static site: plain HTML, CSS, and JavaScript, with [Leaflet](https://leafletjs.com/) and a free [OpenFreeMap](https://openfreemap.org/) basemap (OpenStreetMap data, no API key). There is no build step.
 
 Veterans Day for this edition is Wednesday, November 11, 2026. Offers vary by location. Call ahead and bring military ID or other proof of service.
 
@@ -26,8 +26,8 @@ https://docs.google.com/spreadsheets/d/<SHEET_ID>/gviz/tq?tqx=out:csv&sheet=<Tab
 
 Tabs:
 
-- `Restaurants`
-- `Locations` (joined to restaurants on the restaurant name; `Location` is `lat, long`)
+- `Restaurants` (an optional `Image`, `Image URL`, `Logo`, or `Photo` column is used when it is filled)
+- `Locations` (joined to restaurants on the restaurant name; `Location` is `lat, long`; optional `Image URL` is the card photo when it is filled)
 - `Community Food Help`
 - `About` (key/value rows)
 
@@ -58,8 +58,8 @@ Do not add a build command. Publish the repository root.
 
 ## What’s in the app
 
-- **Map** — named pins on a light map, clustered as “6 places” when zoomed out. On a phone, tap a pin to open that place on the Card tab. On a wider screen, tap a pin for a popup.
-- **Card** — a scrolling feed of each place, with the offer, call-ahead note, call button, address, and map links.
+- **Map** — named pins on a light OpenFreeMap (Bright) basemap, clustered as “6 places” when zoomed out. CARTO’s Voyager tiles now require a paid key, so they are not used. On a phone, tap a pin to open that place on the Card tab. On a wider screen, tap a pin for a popup.
+- **Card** — a compact scrolling feed. Each card has a small photo (a sheet image link when one is filled, otherwise the restaurant logo, otherwise a map thumbnail or initials), the offer clamped to two lines, a one-line call-ahead note, and Call, Google Maps, Apple Maps, and favorite on one row.
 - **List** — one compact row per place. Tap a row for the same details.
 - **Menu** — the icon at the top left holds the filters, About, and the copyright line. Help is its own tab. My Spots is a switch at the top of List. The refresh icon reloads the public sheet.
 - **My Spots** — add, edit, or delete a personal spot. Download a spreadsheet or save a PDF, and import that spreadsheet on another phone.

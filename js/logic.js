@@ -228,6 +228,7 @@ export function buildPlaces(restaurantRows, locationRows) {
       status: field(row, "Status"),
       sourceUrl: safeHttp(field(row, "Source URL")),
       website: safeHttp(field(row, "Website")),
+      image: safeHttp(field(row, "Image URL", "Image", "Logo", "Photo")),
       notes: "",
       locations: [],
     };
@@ -257,6 +258,7 @@ export function buildPlaces(restaurantRows, locationRows) {
         status: "",
         sourceUrl: "",
         website: "",
+        image: "",
         notes: "",
         locations: [],
       };
@@ -278,6 +280,7 @@ export function buildPlaces(restaurantRows, locationRows) {
       lat: coords ? coords.lat : null,
       lng: coords ? coords.lng : null,
       menu: safeHttp(field(row, "Menu URL")),
+      image: safeHttp(field(row, "Image URL", "Image", "Logo", "Photo")),
       callAhead: isCallAhead(locName),
     });
   });
@@ -306,6 +309,7 @@ export function spotToPlace(spot) {
     status: "",
     sourceUrl: "",
     website: "",
+    image: safeHttp(spot.image),
     notes: spot.notes || "",
     spot,
     locations: [
@@ -322,6 +326,7 @@ export function spotToPlace(spot) {
         lat: hasCoords ? lat : null,
         lng: hasCoords ? lng : null,
         menu: "",
+        image: "",
         callAhead: isCallAhead(spot.name),
       },
     ],
