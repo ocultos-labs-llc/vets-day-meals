@@ -307,14 +307,16 @@ function noteBox(id) {
   return details;
 }
 
-function favoriteButton(id) {
+function favoriteButton(id, { compact = false } = {}) {
   const on = !!personal.favorites[id];
   return h("button", {
     type: "button",
-    class: "btn btn-ghost",
+    class: compact ? "chip-btn" : "btn btn-ghost",
     "data-fav-id": id,
+    "data-fav-style": compact ? "icon" : "text",
     "aria-pressed": on ? "true" : "false",
-    text: on ? "★ Favorited" : "☆ Favorite",
+    "aria-label": on ? `Remove ${lookupName(id)} from favorites` : `Save ${lookupName(id)} as a favorite`,
+    text: compact ? (on ? "★" : "☆") : (on ? "★ Favorited" : "☆ Favorite"),
     onclick: () => onFavorite(id),
   });
 }
@@ -327,7 +329,9 @@ function onFavorite(id) {
   document.querySelectorAll("[data-fav-id]").forEach((el) => {
     if (el.getAttribute("data-fav-id") === id) {
       el.setAttribute("aria-pressed", on ? "true" : "false");
-      el.textContent = on ? "★ Favorited" : "☆ Favorite";
+      const icon = el.getAttribute("data-fav-style") === "icon";
+      el.textContent = icon ? (on ? "★" : "☆") : (on ? "★ Favorited" : "☆ Favorite");
+      el.setAttribute("aria-label", on ? `Remove ${lookupName(id)} from favorites` : `Save ${lookupName(id)} as a favorite`);
     }
   });
   renderMarkers();
@@ -634,6 +638,198 @@ function appendPlaceDetails(container, place, focusLocId) {
   }
 }
 
+function primaryLoc(place, focusLocId) {
+  if (focusLocId) {
+    const hit = place.locations.find((loc) => loc.id === focusLocId);
+    if (hit) return hit;
+  }
+  const pinned = place.locations.filter((loc) => loc.lat != null);
+  if (origin && pinned.length) {
+    return pinned.slice().sort((a, b) => milesBetween(origin, a) - milesBetween(origin, b))[0];
+  }
+  return place.locations[0] || null;
+}
+
+function websiteDomain(url) {
+  const href = safeHttp(url);
+  if (!href) return "";
+  try {
+    return new URL(href).hostname.replace(/^www\./i, "");
+  } catch {
+    return "";
+  }
+}
+
+function placePictures(place, loc) {
+  const urls = [];
+  const push = (url) => {
+    const href = safeHttp(url);
+    if (href && !urls.includes(href)) urls.push(href);
+  };
+  if (loc) push(loc.image);
+  for (const item of place.locations || []) push(item.image);
+  push(place.image);
+  return urls;
+}
+
+function initialsFor(name) {
+  const words = String(name || "").replace(/[^A-Za-z0-9 ]/g, " ").trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return "?";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return `${words[0][0]}${words[1][0]}`.toUpperCase();
+}
+
+function initialsBadge(name) {
+  return h("span", {
+    class: "thumb-initials",
+    role: "img",
+    "aria-label": `${name} initials`,
+    text: initialsFor(name),
+  });
+}
+
+function osmTile(lat, lng, zoom = 15) {
+  const n = 2 ** zoom;
+  const x = (lng + 180) / 360 * n;
+  const latRad = lat * Math.PI / 180;
+  const y = (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n;
+  return {
+    url: `https://tile.openstreetmap.org/${zoom}/${Math.floor(x)}/${Math.floor(y)}.png`,
+    px: (x - Math.floor(x)) * 256,
+    py: (y - Math.floor(y)) * 256,
+  };
+}
+
+function mountThumb(host, place, loc) {
+  const steps = placePictures(place, loc).map((src) => ({
+    kind: "photo",
+    src,
+    alt: `${place.name} photo`,
+  }));
+  const domain = websiteDomain(place.website);
+  if (domain) {
+    steps.push({
+      kind: "logo",
+      src: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`,
+      alt: `${place.name} logo`,
+    });
+  }
+  if (loc && loc.lat != null && loc.lng != null) steps.push({ kind: "map", lat: loc.lat, lng: loc.lng });
+  steps.push({ kind: "initials" });
+
+  const show = (index) => {
+    const step = steps[index] || { kind: "initials" };
+    host.dataset.thumb = step.kind;
+    if (step.kind === "initials") {
+      host.replaceChildren(initialsBadge(place.name));
+      return;
+    }
+    if (step.kind === "map") {
+      const tile = osmTile(step.lat, step.lng);
+      const box = h("div", {
+        class: "thumb-map",
+        role: "img",
+        "aria-label": `Map thumbnail of ${place.name}`,
+        title: "© OpenStreetMap contributors",
+      });
+      const img = h("img", { src: tile.url, alt: "", loading: "lazy", decoding: "async" });
+      img.style.setProperty("--px", `${tile.px}px`);
+      img.style.setProperty("--py", `${tile.py}px`);
+      img.addEventListener("error", () => show(index + 1));
+      box.append(img);
+      host.replaceChildren(box);
+      return;
+    }
+    const img = h("img", {
+      class: step.kind === "logo" ? "thumb-logo" : "thumb-photo",
+      src: step.src,
+      alt: step.alt,
+      loading: "lazy",
+      decoding: "async",
+      width: "64",
+      height: "64",
+    });
+    img.addEventListener("error", () => show(index + 1));
+    host.replaceChildren(img);
+  };
+  show(0);
+}
+
+function offerBlock(text) {
+  const offer = String(text || "").trim();
+  if (!offer) return null;
+  const wrap = h("div", { class: "feed-offer-wrap" });
+  const paragraph = h("p", { class: "feed-offer", text: offer });
+  const more = h("button", {
+    type: "button",
+    class: "more-link",
+    text: "More",
+    hidden: true,
+    "aria-expanded": "false",
+    "aria-label": "Show the full offer",
+  });
+  more.addEventListener("click", () => {
+    const open = paragraph.classList.toggle("is-open");
+    more.textContent = open ? "Less" : "More";
+    more.setAttribute("aria-expanded", open ? "true" : "false");
+    more.setAttribute("aria-label", open ? "Show less of the offer" : "Show the full offer");
+  });
+  wrap.append(paragraph, more);
+  requestAnimationFrame(() => {
+    if (paragraph.scrollHeight > paragraph.clientHeight + 1) more.hidden = false;
+  });
+  return wrap;
+}
+
+function cardActions(place, loc) {
+  const row = h("div", { class: "feed-actions" });
+  const tel = loc ? telHref(loc.phone) : "";
+  if (tel) {
+    row.append(h("a", {
+      class: "chip-btn is-call",
+      href: tel,
+      "aria-label": `Call ${loc.name} at ${loc.phone}`,
+      text: "Call",
+    }));
+  } else {
+    row.append(h("button", {
+      type: "button",
+      class: "chip-btn is-call",
+      "aria-label": NO_PHONE,
+      text: "Call",
+      onclick: () => toast(NO_PHONE),
+    }));
+  }
+  const target = loc || {
+    name: place.name,
+    address: "San Antonio, TX",
+    city: "San Antonio",
+    zip: "",
+    google: "",
+    apple: "",
+    lat: null,
+    lng: null,
+  };
+  row.append(h("a", {
+    class: "chip-btn",
+    href: googleHref(target),
+    target: "_blank",
+    rel: "noopener noreferrer",
+    "aria-label": `Google Maps for ${place.name} (opens in a new tab)`,
+    text: "Google",
+  }));
+  row.append(h("a", {
+    class: "chip-btn",
+    href: appleHref(target),
+    target: "_blank",
+    rel: "noopener noreferrer",
+    "aria-label": `Apple Maps for ${place.name} (opens in a new tab)`,
+    text: "Apple",
+  }));
+  row.append(favoriteButton(place.id, { compact: true }));
+  return row;
+}
+
 function renderCard() {
   const results = document.getElementById("card-results");
   const count = document.getElementById("card-count");
@@ -652,11 +848,34 @@ function renderCard() {
     return;
   }
   for (const place of shown) {
+    const focusId = focusTarget && focusTarget.placeId === place.id ? focusTarget.locId : "";
+    const loc = primaryLoc(place, focusId);
     const card = h("article", { class: "feed-card" });
     card.dataset.placeId = place.id;
-    if (focusTarget && focusTarget.placeId === place.id) card.classList.add("is-focused");
-    card.append(h("h3", { text: place.name }));
-    appendPlaceDetails(card, place, focusTarget && focusTarget.placeId === place.id ? focusTarget.locId : "");
+    if (focusId) card.classList.add("is-focused");
+    const top = h("div", { class: "feed-top" });
+    const thumb = h("div", { class: "feed-thumb" });
+    mountThumb(thumb, place, loc);
+    const copy = h("div", { class: "feed-copy" });
+    copy.append(h("h3", { text: place.name }));
+    const meta = h("p", { class: "feed-meta" });
+    const chip = offerChip(place.offerLabel);
+    if (chip) meta.append(chip);
+    if (place.kind === "spot") meta.append(h("span", { class: "chip chip-mine", text: "My spot" }));
+    const area = rowMeta(place);
+    if (area) meta.append(h("span", { text: area }));
+    if (meta.childNodes.length) copy.append(meta);
+    if (loc) {
+      const address = formatAddress(loc);
+      if (address) copy.append(h("p", { class: "feed-addr", text: address }));
+      else if (loc.lat == null) copy.append(h("p", { class: "feed-addr", text: "No map pin for this address." }));
+    }
+    top.append(thumb, copy);
+    card.append(top);
+    const offer = offerBlock(place.offer);
+    if (offer) card.append(offer);
+    card.append(h("p", { class: "feed-ahead", text: CALLOUT }));
+    card.append(cardActions(place, loc));
     results.append(card);
   }
   updateFilterBadge();
@@ -922,12 +1141,21 @@ function initMap() {
     host.replaceChildren(h("p", { class: "empty", text: "The map could not load. The List tab still has every place." }));
     return;
   }
-  map = L.map(host, { scrollWheelZoom: true, zoomControl: false }).setView(SA_CENTER, 11);
+  map = L.map(host, { scrollWheelZoom: true, zoomControl: false, maxZoom: 19 }).setView(SA_CENTER, 11);
   L.control.zoom({ position: "topright" }).addTo(map);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  }).addTo(map);
+  // CARTO Voyager now paints "API KEY REQUIRED" on every tile. OpenFreeMap Bright
+  // is the free, no-key style in that same light family.
+  if (typeof L.maplibreGL === "function") {
+    L.maplibreGL({
+      style: "https://tiles.openfreemap.org/styles/bright",
+      attribution: '&copy; <a href="https://openfreemap.org/">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/copyright">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
+  } else {
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map);
+  }
   if (typeof L.markerClusterGroup === "function") {
     cluster = L.markerClusterGroup({
       showCoverageOnHover: false,
