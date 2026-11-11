@@ -39,7 +39,9 @@ import {
   toCsv,
 } from "./personal-file.js";
 
-const VIEWS = ["map", "list", "help", "about", "mine"];
+const VIEWS = ["map", "card", "list", "help", "about", "mine"];
+const VIEW_TITLES = { map: "Map", card: "Card", list: "List", help: "Help", about: "About", mine: "My Spots" };
+const NAME_ZOOM = 14;
 
 const personal = loadPersonal();
 let directory = [];
@@ -50,6 +52,7 @@ let helpSource = "snapshot";
 let aboutSource = "snapshot";
 let loaded = false;
 let failed = false;
+let focusTarget = null;
 let origin = null;
 let map = null;
 let cluster = null;
@@ -327,7 +330,7 @@ function onFavorite(id) {
     }
   });
   renderMarkers();
-  if (document.getElementById("fav-only").getAttribute("aria-pressed") === "true") renderList();
+  if (document.getElementById("fav-only").getAttribute("aria-pressed") === "true") renderDynamic();
   else renderMineLists();
 }
 
@@ -530,12 +533,140 @@ function renderSpotCard(place) {
   return card;
 }
 
+function shortArea(place) {
+  const areas = [];
+  for (const loc of place.locations) {
+    const area = (loc.area || "").trim();
+    if (area && area.toLowerCase() !== "san antonio" && !areas.includes(area)) areas.push(area);
+  }
+  if (areas.length === 1) return areas[0];
+  if (areas.length > 1) return "Several areas";
+  const summary = (place.areaSummary || "").trim();
+  if (summary && summary.toLowerCase() !== "citywide") return summary;
+  if (place.locations.length > 1) return `${place.locations.length} locations`;
+  return place.locations[0]?.city || "";
+}
+
+function rowMeta(place) {
+  const area = shortArea(place);
+  if (origin) {
+    const miles = closestMiles(place, origin);
+    if (Number.isFinite(miles)) return area ? `${formatMiles(miles)} · ${area}` : formatMiles(miles);
+  }
+  return area;
+}
+
+function appendPlaceDetails(container, place, focusLocId) {
+  const chips = h("div", { class: "chips" });
+  const chip = offerChip(place.offerLabel);
+  if (chip) chips.append(chip);
+  if (place.kind === "spot") chips.append(h("span", { class: "chip chip-mine", text: "My spot" }));
+  if (place.locations.some((loc) => loc.callAhead)) chips.append(callAheadBadge());
+  if (chips.childNodes.length) container.append(chips);
+  const locs = place.locations.slice();
+  if (focusLocId) {
+    locs.sort((a, b) => (a.id === focusLocId ? -1 : b.id === focusLocId ? 1 : 0));
+  }
+  const paintLoc = (loc) => {
+    const block = h("div", { class: loc.callAhead ? "loc is-ahead" : "loc" });
+    if (focusLocId && loc.id === focusLocId) block.classList.add("is-hit");
+    block.setAttribute("data-loc-id", loc.id);
+    if (locs.length > 1 || loc.name !== place.name) {
+      const head = h("div", { class: "loc-head" });
+      head.append(h("h4", { text: loc.name }));
+      if (loc.callAhead) head.append(callAheadBadge());
+      block.append(head);
+    }
+    const address = formatAddress(loc);
+    if (address) block.append(h("p", { class: "addr", text: address }));
+    if (loc.area) block.append(h("p", { class: "meta", text: loc.area }));
+    if (loc.lat == null) block.append(h("p", { class: "hint", text: "No map pin for this address." }));
+    block.append(buildCallout(loc));
+    if (loc.menu) block.append(h("p", { class: "links" }, [extA(loc.menu, "Menu")]));
+    block.append(mapsRow(loc));
+    return block;
+  };
+  if (locs[0]) container.append(paintLoc(locs[0]));
+  if (place.offer) {
+    const offer = h("p", { class: "offer" });
+    offer.append(h("span", { class: "offer-label", text: "Offer" }), place.offer);
+    container.append(offer);
+  }
+  if (place.notes) {
+    const note = h("p");
+    note.append(h("span", { class: "offer-label", text: "Notes" }), place.notes);
+    container.append(note);
+  }
+  const facts = h("dl", { class: "facts" });
+  addFact(facts, "Hours", place.hours);
+  addFact(facts, "ID / proof", place.proof);
+  addFact(facts, "Participation", place.participation);
+  addFact(facts, "Dates", place.dates);
+  addFact(facts, "Dine-in / takeout", place.service);
+  if (facts.childElementCount) container.append(facts);
+  const links = h("p", { class: "links" });
+  if (place.sourceUrl) links.append(extA(place.sourceUrl, "Source"));
+  if (place.website) links.append(extA(place.website, "Website"));
+  if (links.childNodes.length) container.append(links);
+  const actions = [favoriteButton(place.id)];
+  if (place.kind === "spot") {
+    actions.push(
+      h("button", { type: "button", class: "btn btn-ghost", text: personal.hidden[place.id] ? "Unhide" : "Hide", onclick: () => {
+        if (personal.hidden[place.id]) delete personal.hidden[place.id];
+        else personal.hidden[place.id] = true;
+        persist();
+        renderDynamic();
+      } }),
+      h("button", { type: "button", class: "btn btn-ghost", text: "Edit", onclick: () => startEdit(place.spot) }),
+      h("button", { type: "button", class: "btn btn-ghost", text: "Delete", onclick: () => deleteSpot(place.spot) }),
+    );
+  } else {
+    actions.push(h("button", { type: "button", class: "btn btn-ghost", text: "Hide", onclick: () => hidePlace(place) }));
+  }
+  container.append(h("div", { class: "card-actions" }, actions));
+  container.append(noteBox(place.id));
+  if (locs.length > 1) {
+    const more = h("details", { class: "locs" });
+    more.append(h("summary", { text: `${locs.length - 1} more location${locs.length - 1 === 1 ? "" : "s"}` }));
+    for (const loc of locs.slice(1)) more.append(paintLoc(loc));
+    container.append(more);
+  }
+}
+
+function renderCard() {
+  const results = document.getElementById("card-results");
+  const count = document.getElementById("card-count");
+  if (!results || !count) return;
+  if (!loaded) {
+    results.replaceChildren(h("p", { class: "empty", text: failed ? "The directory could not be loaded." : "Loading the directory…" }));
+    count.textContent = "";
+    return;
+  }
+  const filters = readFilters();
+  const shown = sortPlaces(allPlaces().filter((place) => placeMatches(place, filters)), origin);
+  count.textContent = `${shown.length} ${shown.length === 1 ? "place" : "places"}`;
+  results.replaceChildren();
+  if (!shown.length) {
+    results.append(h("p", { class: "empty", text: "No places match. Open the menu to clear a filter." }));
+    return;
+  }
+  for (const place of shown) {
+    const card = h("article", { class: "feed-card" });
+    card.dataset.placeId = place.id;
+    if (focusTarget && focusTarget.placeId === place.id) card.classList.add("is-focused");
+    card.append(h("h3", { text: place.name }));
+    appendPlaceDetails(card, place, focusTarget && focusTarget.placeId === place.id ? focusTarget.locId : "");
+    results.append(card);
+  }
+  updateFilterBadge();
+}
+
 function renderList() {
   const results = document.getElementById("list-results");
   const scroller = document.getElementById("view-list");
   const y = scroller.scrollTop;
   const openIds = new Set(
-    [...document.querySelectorAll("#list-results details.locs[open]")].map((el) => el.dataset.placeId),
+    [...document.querySelectorAll("#list-results .place.is-open")].map((el) => el.dataset.placeId),
   );
   if (!loaded) {
     results.replaceChildren(h("p", { class: "empty", text: failed ? "The directory could not be loaded." : "Loading the directory…" }));
@@ -544,37 +675,129 @@ function renderList() {
   const filters = readFilters();
   const shown = sortPlaces(allPlaces().filter((place) => placeMatches(place, filters)), origin);
   const count = document.getElementById("list-count");
-  count.replaceChildren();
-  count.append(`${shown.length} ${shown.length === 1 ? "place" : "places"}`);
-  if (origin) count.append(" · closest first");
-  const hiddenIds = Object.keys(personal.hidden);
-  if (hiddenIds.length) {
-    count.append(` · ${hiddenIds.length} hidden `);
-    count.append(h("button", { type: "button", class: "text-btn", text: "Review hidden", onclick: () => showView("mine") }));
-  }
+  count.textContent = `${shown.length} ${shown.length === 1 ? "place" : "places"}`;
   results.replaceChildren();
   if (!shown.length) {
-    results.append(h("p", { class: "empty", text: "No places match. Try clearing a filter." }));
+    results.append(h("p", { class: "empty", text: "No places match. Open the menu to clear a filter." }));
   } else {
     for (const place of shown) {
-      results.append(place.kind === "spot" ? renderSpotCard(place) : renderRestaurantCard(place, filters, openIds));
+      const open = openIds.has(place.id);
+      const article = h("article", { class: open ? "place is-open" : "place" });
+      article.dataset.placeId = place.id;
+      const button = h("button", {
+        type: "button",
+        class: "place-row",
+        "aria-expanded": open ? "true" : "false",
+      });
+      const main = h("span", { class: "place-main" });
+      main.append(h("span", { class: "place-name", text: place.name }));
+      const meta = h("span", { class: "place-meta" });
+      const chip = offerChip(place.offerLabel);
+      if (chip) meta.append(chip);
+      if (place.kind === "spot") meta.append(h("span", { class: "chip chip-mine", text: "My spot" }));
+      const area = rowMeta(place);
+      if (area) meta.append(h("span", { text: area }));
+      main.append(meta);
+      button.append(main, h("span", { class: "chevron", "aria-hidden": "true", text: "›" }));
+      const body = h("div", { class: "place-body" });
+      body.hidden = !open;
+      appendPlaceDetails(body, place, "");
+      button.addEventListener("click", () => {
+        const willOpen = body.hidden;
+        body.hidden = !willOpen;
+        button.setAttribute("aria-expanded", willOpen ? "true" : "false");
+        article.classList.toggle("is-open", willOpen);
+      });
+      article.append(button, body);
+      results.append(article);
     }
   }
-  scroller.scrollTop = y;
+  if (!focusTarget) scroller.scrollTop = y;
+  updateFilterBadge();
+}
+
+function updateFilterBadge() {
+  const filters = readFilters();
+  let count = 0;
+  if (filters.q.trim()) count += 1;
+  if (filters.offer) count += 1;
+  if (filters.service) count += 1;
+  if (filters.area) count += 1;
+  if (filters.favorites) count += 1;
+  if (origin) count += 1;
+  const badge = document.getElementById("filter-badge");
+  if (!badge) return;
+  badge.hidden = count === 0;
+  badge.textContent = String(count);
+}
+
+function showPlaceOnCard(place, loc) {
+  focusTarget = { placeId: place.id, locId: loc ? loc.id : "" };
+  showView("card");
+  renderCard();
+  requestAnimationFrame(() => {
+    const card = document.querySelector(`#card-results [data-place-id="${CSS.escape(place.id)}"]`);
+    if (card) card.scrollIntoView({ block: "start" });
+    focusTarget = null;
+  });
+}
+
+function escapeHtml(value) {
+  return String(value || "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  }[char]));
 }
 
 function makeIcon(place, loc) {
-  const classes = ["pin"];
-  if (place.kind === "spot") classes.push("pin-spot");
-  if (loc.callAhead) classes.push("pin-ahead");
-  if (personal.favorites[place.id]) classes.push("pin-fav");
+  const dot = ["pin-dot"];
+  if (place.kind === "spot") dot.push("pin-spot");
+  if (loc.callAhead) dot.push("pin-ahead");
+  if (personal.favorites[place.id]) dot.push("pin-fav");
+  const name = escapeHtml(place.name);
   return L.divIcon({
     className: "pin-icon",
-    html: `<span class="${classes.join(" ")}"></span>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
+    html: `<span class="pin-chip is-dot" data-name="${name}"><span class="${dot.join(" ")}"></span><span class="pin-name">${name}</span></span>`,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
     popupAnchor: [0, -12],
   });
+}
+
+function placeClusterIcon(group) {
+  const count = group.getChildCount();
+  const text = count === 1 ? "1 place" : `${count} places`;
+  const width = Math.max(84, 16 + text.length * 8);
+  return L.divIcon({
+    className: "place-cluster",
+    html: `<span class="place-cluster-label">${text}</span>`,
+    iconSize: [width, 34],
+    iconAnchor: [width / 2, 17],
+  });
+}
+
+function layoutPinLabels() {
+  if (!map) return;
+  const chips = [...document.querySelectorAll("#map .pin-chip")];
+  if (map.getZoom() < NAME_ZOOM) {
+    chips.forEach((chip) => chip.classList.add("is-dot"));
+    return;
+  }
+  chips.forEach((chip) => chip.classList.remove("is-dot"));
+  chips.sort((a, b) => (a.dataset.name || "").localeCompare(b.dataset.name || ""));
+  const placed = [];
+  for (const chip of chips) {
+    const label = chip.querySelector(".pin-name");
+    const box = label ? label.getBoundingClientRect() : null;
+    if (!box || box.width < 2) continue;
+    const hit = { l: box.left - 3, t: box.top - 2, r: box.right + 3, b: box.bottom + 2 };
+    const overlaps = placed.some((item) => !(hit.r < item.l || hit.l > item.r || hit.b < item.t || hit.t > item.b));
+    if (overlaps) chip.classList.add("is-dot");
+    else placed.push(hit);
+  }
 }
 
 function prefersPinSheet() {
@@ -639,8 +862,9 @@ function buildPinSheetBody(place, loc) {
 function renderMarkers() {
   if (!cluster || !window.L) return;
   cluster.clearLayers();
+  const filters = readFilters();
   for (const place of allPlaces()) {
-    if (personal.hidden[place.id]) continue;
+    if (!placeMatches(place, filters)) continue;
     for (const loc of place.locations) {
       if (loc.lat == null || loc.lng == null) continue;
       const marker = L.marker([loc.lat, loc.lng], {
@@ -650,7 +874,7 @@ function renderMarkers() {
         alt: loc.name,
       });
       if (prefersPinSheet()) {
-        marker.on("click", () => openPinSheet(place, loc));
+        marker.on("click", () => showPlaceOnCard(place, loc));
       } else {
         const mapHeight = map && map.getSize ? map.getSize().y : 480;
         marker.bindPopup(() => buildPopup(place, loc), {
@@ -666,6 +890,16 @@ function renderMarkers() {
       cluster.addLayer(marker);
     }
   }
+  scheduleLabels();
+}
+
+function scheduleLabels() {
+  requestAnimationFrame(() => {
+    layoutPinLabels();
+    if (map && map.getZoom() >= NAME_ZOOM && document.querySelectorAll("#map .pin-chip:not(.is-dot)").length === 0) {
+      setTimeout(layoutPinLabels, 150);
+    }
+  });
 }
 
 function showUserDot() {
@@ -696,15 +930,18 @@ function initMap() {
   if (typeof L.markerClusterGroup === "function") {
     cluster = L.markerClusterGroup({
       showCoverageOnHover: false,
-      maxClusterRadius: 46,
+      maxClusterRadius: 56,
       spiderfyOnMaxZoom: true,
-      disableClusteringAtZoom: 17,
+      disableClusteringAtZoom: 15,
+      iconCreateFunction: placeClusterIcon,
     });
   } else {
     cluster = L.layerGroup();
   }
   map.addLayer(cluster);
-  map.on("click", () => closePinSheet());
+  map.on("zoomend moveend", scheduleLabels);
+  if (cluster && cluster.on) cluster.on("animationend", scheduleLabels);
+  map.on("click", () => { if (map) map.closePopup(); });
   window.__vetsMap = map;
   window.__vets = {
     get map() { return map; },
@@ -860,6 +1097,10 @@ function renderAbout() {
   root.append(h("p", { text: `${fromSheet} ${aboutBit}` }));
   root.append(h("h3", { text: "On this device" }));
   root.append(h("p", { text: "Favorites, hidden places, private notes, and spots you add stay in this browser. They are never written to the public sheet. Download spreadsheet saves a copy you can open in Excel. Import spreadsheet adds that copy back onto a phone without removing what is already there." }));
+  const credit = h("footer", { class: "menu-footer" });
+  credit.append(h("p", {}, ["© 2026 ", h("a", { href: "https://github.com/ocultos-labs-llc", rel: "noopener noreferrer", text: "Ocultos Labs LLC" }), ". All rights reserved."]));
+  credit.append(h("p", {}, [h("a", { href: "https://github.com/aiontrust", rel: "noopener noreferrer", text: "Built by aiontrust" })]));
+  root.append(credit);
 }
 
 function lookupName(id) {
@@ -900,6 +1141,7 @@ function renderMineLists() {
 
 function renderDynamic() {
   renderList();
+  renderCard();
   renderMarkers();
   renderMineLists();
 }
@@ -1012,7 +1254,9 @@ function closeDetail({ restore = true } = {}) {
 function showView(name, { fromHash = false } = {}) {
   if (!VIEWS.includes(name)) name = "map";
   closeDetail({ restore: false });
-  closePinSheet();
+  closeMenu();
+  const title = document.getElementById("bar-title");
+  if (title) title.textContent = VIEW_TITLES[name] || "Map";
   for (const view of VIEWS) {
     const section = document.getElementById(`view-${view}`);
     const on = view === name;
@@ -1048,10 +1292,15 @@ function setNearPressed(on) {
 }
 
 function setLocating(on) {
-  for (const id of ["near-btn", "map-near"]) {
-    const button = document.getElementById(id);
-    button.disabled = on;
-    button.textContent = on ? "Locating…" : "Near me";
+  const near = document.getElementById("near-btn");
+  if (near) {
+    near.disabled = on;
+    near.textContent = on ? "Locating…" : "Near me";
+  }
+  const fab = document.getElementById("map-near");
+  if (fab) {
+    fab.disabled = on;
+    fab.setAttribute("aria-label", on ? "Finding your location" : "Near me");
   }
 }
 
@@ -1071,9 +1320,9 @@ function locate() {
       setLocating(false);
       setNearPressed(true);
       showUserDot();
-      if (map) map.setView([origin.lat, origin.lng], Math.max(map.getZoom(), 12));
-      renderList();
-      toast("Sorted by distance from you. Open List to see the order.");
+      if (map) map.setView([origin.lat, origin.lng], Math.max(map.getZoom(), 14));
+      renderDynamic();
+      toast("Sorted by distance from you.");
     },
     (err) => {
       setLocating(false);
@@ -1089,7 +1338,7 @@ function clearNear() {
   origin = null;
   setNearPressed(false);
   if (userLayer) userLayer.clearLayers();
-  renderList();
+  renderDynamic();
 }
 
 function clearFilters() {
@@ -1319,14 +1568,14 @@ document.getElementById("import-csv").addEventListener("change", async (event) =
   }
 });
 
-document.getElementById("q").addEventListener("input", renderList);
-document.getElementById("offer").addEventListener("change", renderList);
-document.getElementById("service").addEventListener("change", renderList);
-document.getElementById("area").addEventListener("change", renderList);
+document.getElementById("q").addEventListener("input", renderDynamic);
+document.getElementById("offer").addEventListener("change", renderDynamic);
+document.getElementById("service").addEventListener("change", renderDynamic);
+document.getElementById("area").addEventListener("change", renderDynamic);
 document.getElementById("fav-only").addEventListener("click", (event) => {
   const on = event.currentTarget.getAttribute("aria-pressed") !== "true";
   event.currentTarget.setAttribute("aria-pressed", on ? "true" : "false");
-  renderList();
+  renderDynamic();
 });
 document.getElementById("near-btn").addEventListener("click", locate);
 document.getElementById("map-near").addEventListener("click", locate);
@@ -1336,20 +1585,50 @@ document.getElementById("detail-close").addEventListener("click", () => closeDet
 document.getElementById("detail-root").addEventListener("click", (event) => {
   if (event.target.dataset.close === "true") closeDetail();
 });
-document.getElementById("pin-sheet-close").addEventListener("click", closePinSheet);
-document.getElementById("pin-sheet").addEventListener("click", (event) => {
-  if (event.target.id === "pin-sheet") closePinSheet();
+function closeMenu() {
+  const panel = document.getElementById("menu-panel");
+  if (!panel || panel.hidden) return;
+  panel.hidden = true;
+  document.getElementById("menu-btn").setAttribute("aria-expanded", "false");
+}
+
+function openMenu() {
+  document.getElementById("menu-panel").hidden = false;
+  document.getElementById("menu-btn").setAttribute("aria-expanded", "true");
+  document.getElementById("menu-close").focus();
+}
+
+document.getElementById("menu-btn").addEventListener("click", openMenu);
+document.getElementById("menu-close").addEventListener("click", closeMenu);
+document.getElementById("menu-panel").addEventListener("click", (event) => {
+  if (event.target.id === "menu-panel") closeMenu();
 });
+document.getElementById("search-btn").addEventListener("click", () => {
+  const bar = document.getElementById("search-bar");
+  const open = bar.hidden;
+  bar.hidden = !open;
+  document.getElementById("search-btn").setAttribute("aria-expanded", open ? "true" : "false");
+  if (open) document.getElementById("q").focus();
+});
+document.getElementById("search-filters").addEventListener("click", openMenu);
+document.getElementById("add-spot-btn").addEventListener("click", () => {
+  showView("mine");
+  const field = document.getElementById("spot-name");
+  field.scrollIntoView({ block: "center" });
+  field.focus();
+});
+document.getElementById("menu-heading").textContent = APP_TITLE;
+document.getElementById("refresh-btn").addEventListener("click", () => reloadDirectory(true));
+
 window.matchMedia("(max-width: 720px)").addEventListener("change", () => {
-  closePinSheet();
   if (map) map.closePopup();
   renderMarkers();
 });
 
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && !document.getElementById("pin-sheet").hidden && document.getElementById("detail-root").hidden) {
+  if (event.key === "Escape" && !document.getElementById("menu-panel").hidden && document.getElementById("detail-root").hidden) {
     event.preventDefault();
-    closePinSheet();
+    closeMenu();
     return;
   }
   if (document.getElementById("detail-root").hidden) return;
@@ -1380,32 +1659,48 @@ window.addEventListener("resize", () => {
 initMap();
 showView(viewFromHash(), { fromHash: true });
 setSourceLines();
-renderList();
-renderMineLists();
+renderDynamic();
 
-Promise.all([
-  loadDirectory(),
-  loadTable(SHEET_TABS.community, SNAPSHOTS.community, "Organization"),
-  loadTable(SHEET_TABS.about, SNAPSHOTS.about, null),
-]).then(([directoryData, community, about]) => {
-  directory = buildPlaces(directoryData.restaurants, directoryData.locations);
-  dirSource = directoryData.source;
-  communityRows = community.rows;
-  helpSource = community.source;
-  aboutEntries = parseAbout(about.rows);
-  aboutSource = about.source;
-  loaded = true;
-  fillAreas();
-  setSourceLines();
-  renderHelp();
-  renderAbout();
-  renderDynamic();
-  if (map) requestAnimationFrame(() => map.invalidateSize());
-}).catch(() => {
-  failed = true;
-  loaded = false;
-  setSourceLines();
-  renderList();
-  renderHelp();
-  renderAbout();
-});
+async function reloadDirectory(announce) {
+  const button = document.getElementById("refresh-btn");
+  if (button) button.disabled = true;
+  try {
+    const [directoryData, community, about] = await Promise.all([
+      loadDirectory(),
+      loadTable(SHEET_TABS.community, SNAPSHOTS.community, "Organization"),
+      loadTable(SHEET_TABS.about, SNAPSHOTS.about, null),
+    ]);
+    directory = buildPlaces(directoryData.restaurants, directoryData.locations);
+    dirSource = directoryData.source;
+    communityRows = community.rows;
+    helpSource = community.source;
+    aboutEntries = parseAbout(about.rows);
+    aboutSource = about.source;
+    loaded = true;
+    failed = false;
+    fillAreas();
+    setSourceLines();
+    renderHelp();
+    renderAbout();
+    renderDynamic();
+    if (map) requestAnimationFrame(() => map.invalidateSize());
+    if (announce) {
+      toast(dirSource === "live"
+        ? "Listings updated from the public sheet."
+        : "Showing the saved copy. The live sheet was unavailable.");
+    }
+  } catch {
+    if (!loaded) {
+      failed = true;
+      setSourceLines();
+      renderDynamic();
+      renderHelp();
+      renderAbout();
+    }
+    if (announce) toast("Couldn't reload the listings.");
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+reloadDirectory(false);
