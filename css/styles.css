@@ -230,8 +230,66 @@ main {
 
 .pin-popup .leaflet-popup-content {
   margin: 12px;
-  max-height: min(46vh, 360px);
   overflow: auto;
+}
+
+.pin-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 1200;
+  bottom: calc(4.25rem + 2.75rem + env(safe-area-inset-bottom));
+  padding: 0 10px;
+  pointer-events: none;
+}
+
+.pin-sheet-card {
+  pointer-events: auto;
+  max-height: min(48dvh, 420px);
+  overflow: auto;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 8px 12px 12px;
+}
+
+.pin-sheet-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--card);
+  padding-bottom: 6px;
+}
+
+.pin-sheet-top h2 {
+  margin: 4px 0 0;
+  font-size: 1.15rem;
+}
+
+.pin-sheet-top .btn { width: auto; min-height: 44px; flex: none; }
+
+@media (max-width: 720px) {
+  .topbar { padding: 6px 12px; }
+  .brand-mark { width: 32px; height: 32px; font-size: 1rem; }
+  h1 { font-size: 1.15rem; }
+  #view-map .banner {
+    padding: 6px 12px;
+    font-size: 0.92rem;
+    line-height: 1.25;
+  }
+  #view-map .source-line {
+    padding: 2px 12px 4px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
 .leaflet-container a.btn { color: var(--text); }

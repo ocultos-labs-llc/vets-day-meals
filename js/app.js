@@ -577,6 +577,17 @@ function makeIcon(place, loc) {
   });
 }
 
+function prefersPinSheet() {
+  return window.matchMedia("(max-width: 720px)").matches;
+}
+
+function placeSummary(place, loc) {
+  const bits = [];
+  if (place.kind !== "spot" && place.name && place.name !== loc.name) bits.push(place.name);
+  if (place.offerLabel) bits.push(place.offerLabel);
+  return bits.join(" · ");
+}
+
 function buildPopup(place, loc) {
   const wrap = h("div", { class: "popup-card" });
   const title = h("p", { class: "popup-title" });
@@ -584,25 +595,43 @@ function buildPopup(place, loc) {
   if (loc.callAhead) title.append(callAheadBadge());
   if (place.kind === "spot") title.append(h("span", { class: "chip chip-mine", text: "My spot" }));
   wrap.append(title);
-  const kicker = [];
-  if (place.kind !== "spot" && place.name && place.name !== loc.name) kicker.push(place.name);
-  if (place.offerLabel) kicker.push(place.offerLabel);
-  if (kicker.length) wrap.append(h("p", { class: "kicker", text: kicker.join(" · ") }));
-  wrap.append(buildCallout(loc));
-  const address = formatAddress(loc);
-  if (address) wrap.append(h("p", { class: "addr", text: address }));
-  wrap.append(mapsRow(loc));
-  if (place.offer) wrap.append(h("p", { class: "popup-offer", text: clip(place.offer, 140) }));
+  const summary = placeSummary(place, loc);
+  if (summary) wrap.append(h("p", { class: "kicker", text: summary }));
+  if (place.offer) wrap.append(h("p", { class: "popup-offer", text: clip(place.offer, 110) }));
   wrap.append(h("button", {
     type: "button",
     class: "btn btn-primary",
-    text: "Full details",
+    text: "Details",
     onclick: (event) => {
       event.preventDefault();
       event.stopPropagation();
       if (map) map.closePopup();
       openDetail(place, loc);
     },
+  }));
+  return wrap;
+}
+
+function buildPinSheetBody(place, loc) {
+  const wrap = h("div");
+  const chips = h("div", { class: "chips" });
+  if (loc.callAhead) chips.append(callAheadBadge());
+  if (place.kind === "spot") chips.append(h("span", { class: "chip chip-mine", text: "My spot" }));
+  const offerChipNode = offerChip(place.offerLabel);
+  if (offerChipNode) chips.append(offerChipNode);
+  if (chips.childNodes.length) wrap.append(chips);
+  const summary = placeSummary(place, loc);
+  if (summary) wrap.append(h("p", { class: "kicker", text: summary }));
+  if (place.offer) wrap.append(h("p", { class: "popup-offer", text: place.offer }));
+  wrap.append(buildCallout(loc));
+  const address = formatAddress(loc);
+  if (address) wrap.append(h("p", { class: "addr", text: address }));
+  wrap.append(mapsRow(loc));
+  wrap.append(h("button", {
+    type: "button",
+    class: "btn btn-primary",
+    text: "Details",
+    onclick: () => openDetail(place, loc),
   }));
   return wrap;
 }
@@ -620,13 +649,20 @@ function renderMarkers() {
         keyboard: true,
         alt: loc.name,
       });
-      marker.bindPopup(() => buildPopup(place, loc), {
-        className: "pin-popup",
-        maxWidth: 280,
-        minWidth: 220,
-        autoPanPadding: [12, 16],
-        keepInView: true,
-      });
+      if (prefersPinSheet()) {
+        marker.on("click", () => openPinSheet(place, loc));
+      } else {
+        const mapHeight = map && map.getSize ? map.getSize().y : 480;
+        marker.bindPopup(() => buildPopup(place, loc), {
+          className: "pin-popup",
+          maxWidth: 300,
+          minWidth: 220,
+          maxHeight: Math.max(140, mapHeight - 96),
+          autoPan: true,
+          keepInView: false,
+          autoPanPadding: [28, 28],
+        });
+      }
       cluster.addLayer(marker);
     }
   }
@@ -668,16 +704,16 @@ function initMap() {
     cluster = L.layerGroup();
   }
   map.addLayer(cluster);
+  map.on("click", () => closePinSheet());
   window.__vetsMap = map;
   window.__vets = {
     get map() { return map; },
     pinCount: () => (cluster && cluster.getLayers ? cluster.getLayers().length : 0),
-    openNearest(lat, lng) {
-      if (!cluster || !map) return;
-      const layers = cluster.getLayers();
+    nearest(lat, lng) {
+      if (!cluster) return null;
       let best = null;
       let bestD = Infinity;
-      for (const marker of layers) {
+      for (const marker of cluster.getLayers()) {
         if (!marker.getLatLng) continue;
         const ll = marker.getLatLng();
         const d = (ll.lat - lat) ** 2 + (ll.lng - lng) ** 2;
@@ -686,10 +722,50 @@ function initMap() {
           best = marker;
         }
       }
-      if (!best) return;
-      const open = () => best.openPopup();
-      if (cluster.zoomToShowLayer) cluster.zoomToShowLayer(best, open);
-      else open();
+      return best;
+    },
+    reveal(lat, lng) {
+      const best = this.nearest(lat, lng);
+      if (!best || !map) return Promise.resolve(null);
+      const finish = () => {
+        const icon = best.getElement();
+        if (!icon) return null;
+        const rect = icon.getBoundingClientRect();
+        const ll = best.getLatLng();
+        return {
+          x: rect.x + rect.width / 2,
+          y: rect.y + rect.height / 2,
+          lat: ll.lat,
+          lng: ll.lng,
+          name: best.options.title || "",
+        };
+      };
+      return new Promise((resolve) => {
+        if (cluster.zoomToShowLayer) cluster.zoomToShowLayer(best, () => resolve(finish()));
+        else resolve(finish());
+      });
+    },
+    parkAt(lat, lng, edge) {
+      const ll = L.latLng(lat, lng);
+      map.setView(ll, 17, { animate: false });
+      const size = map.getSize();
+      const point = map.latLngToContainerPoint(ll);
+      const target = {
+        north: [size.x / 2, 36],
+        south: [size.x / 2, size.y - 20],
+        west: [24, size.y / 2],
+        east: [size.x - 24, size.y / 2],
+        center: [size.x / 2, size.y / 2],
+      }[edge] || [size.x / 2, size.y / 2];
+      map.panBy([point.x - target[0], point.y - target[1]], { animate: false });
+      const icon = this.nearest(lat, lng).getElement();
+      const rect = icon.getBoundingClientRect();
+      const center = map.getCenter();
+      return {
+        x: rect.x + rect.width / 2,
+        y: rect.y + rect.height / 2,
+        center: { lat: center.lat, lng: center.lng },
+      };
     },
   };
   requestAnimationFrame(() => map.invalidateSize());
@@ -883,8 +959,40 @@ function setPageInert(on) {
   }
 }
 
+function closePinSheet() {
+  const sheet = document.getElementById("pin-sheet");
+  if (!sheet || sheet.hidden) return;
+  sheet.hidden = true;
+}
+
+function nudgePinAboveSheet(loc) {
+  if (!map || loc.lat == null || loc.lng == null) return;
+  const card = document.querySelector(".pin-sheet-card");
+  if (!card) return;
+  const mapRect = map.getContainer().getBoundingClientRect();
+  const cardRect = card.getBoundingClientRect();
+  const point = map.latLngToContainerPoint([loc.lat, loc.lng]);
+  const visibleBottom = cardRect.top - mapRect.top - 36;
+  if (visibleBottom < 72) return;
+  if (point.y > visibleBottom) {
+    map.panBy([0, point.y - visibleBottom], { animate: true, duration: 0.25 });
+  } else if (point.y < 40) {
+    map.panBy([0, point.y - 72], { animate: true, duration: 0.25 });
+  }
+}
+
+function openPinSheet(place, loc) {
+  if (!place || !loc) return;
+  if (map) map.closePopup();
+  document.getElementById("pin-sheet-title").textContent = loc.name;
+  document.getElementById("pin-sheet-body").replaceChildren(buildPinSheetBody(place, loc));
+  document.getElementById("pin-sheet").hidden = false;
+  requestAnimationFrame(() => nudgePinAboveSheet(loc));
+}
+
 function openDetail(place, loc) {
   if (!place || !loc) return;
+  closePinSheet();
   lastFocus = document.activeElement;
   document.getElementById("detail-body").replaceChildren(buildDetail(place, loc));
   document.getElementById("detail-root").hidden = false;
@@ -904,6 +1012,7 @@ function closeDetail({ restore = true } = {}) {
 function showView(name, { fromHash = false } = {}) {
   if (!VIEWS.includes(name)) name = "map";
   closeDetail({ restore: false });
+  closePinSheet();
   for (const view of VIEWS) {
     const section = document.getElementById(`view-${view}`);
     const on = view === name;
@@ -1227,7 +1336,22 @@ document.getElementById("detail-close").addEventListener("click", () => closeDet
 document.getElementById("detail-root").addEventListener("click", (event) => {
   if (event.target.dataset.close === "true") closeDetail();
 });
+document.getElementById("pin-sheet-close").addEventListener("click", closePinSheet);
+document.getElementById("pin-sheet").addEventListener("click", (event) => {
+  if (event.target.id === "pin-sheet") closePinSheet();
+});
+window.matchMedia("(max-width: 720px)").addEventListener("change", () => {
+  closePinSheet();
+  if (map) map.closePopup();
+  renderMarkers();
+});
+
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !document.getElementById("pin-sheet").hidden && document.getElementById("detail-root").hidden) {
+    event.preventDefault();
+    closePinSheet();
+    return;
+  }
   if (document.getElementById("detail-root").hidden) return;
   if (event.key === "Escape") {
     event.preventDefault();
