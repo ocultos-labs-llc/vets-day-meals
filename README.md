@@ -40,7 +40,7 @@ The sheet is shared so anyone with the link can view. If a live request fails (f
 
 Replace those files when you refresh the bundled snapshot. `data/about.csv` is the fallback for the About tab.
 
-Personal data never goes to the sheet. Favorites, hidden places, private notes, and spots you add are stored in `localStorage` on the device. Export downloads a JSON file. Import replaces that personal data on the device.
+Personal data never goes to the sheet. Favorites, hidden places, private notes, and spots you add are stored in `localStorage` on the device. Download spreadsheet saves a CSV you can open in Excel. Save as PDF opens a print view. Import spreadsheet reads that CSV back onto this device, adding anything that is not already there.
 
 ## Enable GitHub Pages
 
@@ -62,6 +62,6 @@ Do not add a build command. Publish the repository root.
 - **List** — search, Free or Discount, dine-in or takeout, and area. Locations without coordinates or a phone stay in the list, with the restaurant website and Google/Apple Maps as the fallback.
 - **Help** — community food organizations.
 - **About** — purpose, last updated, and a disclaimer.
-- **My Spots** — add, edit, or delete a personal spot (optional latitude/longitude or a Google Maps link). Star favorites, hide places, keep private notes, and export or import JSON.
+- **My Spots** — add, edit, or delete a personal spot (optional latitude/longitude or a Google Maps link). Star favorites, hide places, and keep private notes. Download a spreadsheet or save a PDF to keep a copy, and import that spreadsheet on another phone.
 
 The footer on every view credits Ocultos Labs LLC and aiontrust.

@@ -92,13 +92,13 @@
     <section id="view-mine" class="view" hidden aria-labelledby="mine-heading">
       <div class="wrap">
         <h2 id="mine-heading" class="section-title">My Spots</h2>
-        <p class="lede">Saved only on this device. Nothing you add here is written to the public sheet.</p>
-        <div class="actions">
-          <button type="button" id="export-btn" class="btn">Export JSON</button>
+        <p class="lede" id="device-note">Your spots are saved only on this device. Download a copy to keep them or move them to another phone.</p>
+        <div class="save-actions">
+          <button type="button" id="download-csv" class="btn">Download spreadsheet</button>
+          <button type="button" id="save-pdf" class="btn">Save as PDF</button>
+          <button type="button" id="import-csv-btn" class="btn">Import spreadsheet</button>
+          <input id="import-csv" class="sr-only" type="file" accept=".csv,text/csv" tabindex="-1" aria-hidden="true">
         </div>
-        <label class="field">Import personal data
-          <input id="import-file" type="file" accept="application/json,.json">
-        </label>
         <form id="spot-form">
           <h3 id="form-heading">Add a spot</h3>
           <p id="form-error" class="no-phone" role="alert" hidden></p>
@@ -170,6 +170,16 @@
     </div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <div id="print-sheet" class="print-sheet" hidden>
+    <button type="button" id="print-back" class="print-back">Back</button>
+    <h1>My Veterans Day Spots</h1>
+    <p id="print-date" class="print-date"></p>
+    <div id="print-list"></div>
+    <footer class="print-footer">
+      <p>© 2026 <a href="https://github.com/ocultos-labs-llc">Ocultos Labs LLC</a>. All rights reserved.</p>
+      <p><a href="https://github.com/aiontrust">Built by aiontrust</a></p>
+    </footer>
+  </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
